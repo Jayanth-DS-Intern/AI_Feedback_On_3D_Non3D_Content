@@ -7,7 +7,9 @@ from system_tools import system_prompt,tools_3d_models_feedback
 import tempfile
 import streamlit as st
 import json
- 
+from PIL import Image
+from io import BytesIO
+from Unique_Frames import UniqueFrames
 
 feedback3d ,non3dfeedback = st.tabs(['3D Feedback', "Non 3D Feedback"])
 
@@ -18,6 +20,52 @@ def save_uploaded_file(uploaded_file):
             tmp_file.write(uploaded_file.getvalue())
             # Return the path of the temporary file
         return tmp_file.name
+
+def extract_key_frames(frames, similarity_threshold=0.2):
+    key_frames = []
+    current_frame_index = 0
+    
+    while current_frame_index < len(frames):
+        key_frames.append(frames[current_frame_index])
+        
+        for i in range(current_frame_index + 1, len(frames)):
+            similarity = compare_frames(frames[current_frame_index], frames[i])
+            if similarity <= similarity_threshold:
+                current_frame_index = i
+                key_frames.append(frames[i])
+                break
+        else:
+            # If no frame meets the threshold, we've reached the end
+            break
+    
+    return key_frames
+
+import cv2
+import numpy as np
+
+def phash(image, hash_size=8):
+    # Resize the input image
+    resized = cv2.resize(image, (hash_size + 1, hash_size))
+    
+    # Compute DCT
+    dct = cv2.dct(np.float32(resized))
+    dct_low_freq = dct[:hash_size, :hash_size]
+    
+    # Compute median value
+    med = np.median(dct_low_freq)
+    
+    # Generate hash
+    return (dct_low_freq > med).flatten()
+
+def hamming_distance(hash1, hash2):
+    return np.sum(hash1 != hash2)
+
+def compare_frames(img1, img2):
+    hash1 = phash(img1)
+    hash2 = phash(img2)
+    distance = hamming_distance(hash1, hash2)
+    similarity = 1 - (distance / len(hash1))
+    return similarity
 
 class AI_Feedback:
     def __init__(self):
@@ -44,7 +92,9 @@ class AI_Feedback:
             
             # Extract a frame every 0.5 seconds
             if frame_count % frames_to_skip == 0:
-                frames.append(frame)
+                # Convert BGR to RGB
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                frames.append(rgb_frame)
             
             frame_count += 1
         
@@ -53,12 +103,13 @@ class AI_Feedback:
         print(f"Video duration: {duration:.2f} seconds")
         print(f"Frames extracted: {len(frames)}")
         return frames
-
     def encode_base64(self,frames):
         base64Frames = []
         for frame in frames:
-            _, buffer = cv2.imencode(".jpg", frame)
-            base64Frames.append(base64.b64encode(buffer).decode("utf-8"))
+            buffered = BytesIO()
+            frame.save(buffered, format="JPEG")
+          #  _, buffer = cv2.imencode(".jpg", frame)
+            base64Frames.append(base64.b64encode(buffered.getvalue()).decode("utf-8"))
         return base64Frames
 
     def send_request(self,system_prompt, message_list):
@@ -79,15 +130,36 @@ class AI_Feedback:
         except Exception as e:
             print(f"Exception occurred in send request function as: {e}")
 
-     
+    def load_images_from_folder(self,path):
 
+        # Create an empty list to store the images
+        Unique_Frames = []
+
+        # Loop through the files in the folder
+        for filename in os.listdir(path):
+            # Check if the file is a JPG image
+            if filename.endswith('.jpg'):
+                # Open the image
+                image_path = os.path.join(path, filename)
+                image = Image.open(image_path)
+                
+                # Add the image to the Unique_Frames list
+                Unique_Frames.append(image)
+        return Unique_Frames
+    
     def feedback_on_3d_Models(self, uploaded_video_path, topic):
+        AI_3D_Unique = UniqueFrames()
         temp_video_path = save_uploaded_file(uploaded_video_path)
+        Unique_3d_frames_path = AI_3D_Unique.main(video_3d_path=temp_video_path)
         s_t1 = time.time()
-        Frames = self.video_frames(video_path=temp_video_path)
+        #Frames = self.video_frames(video_path=temp_video_path)
+        Frames = self.load_images_from_folder(path=Unique_3d_frames_path)
+        for frame in Frames:
+            st.image(frame)
         e_d1 = time.time()
         print("Time taken for entire process------>",e_d1-s_t1)
-        
+        # unique_frames = extract_key_frames(frames=Frames)
+        # print("length of unique frames------->",len(unique_frames))
         base64Frames = self.encode_base64(Frames)
         # Create the initial message with text content
         message = {
@@ -101,11 +173,11 @@ class AI_Feedback:
         }
 
         # Add image content to the same message
-        for base64_string in base64Frames[0::15]:
+        for base64_string in base64Frames:
             message["content"].append({
                 "type": "image",
                 "source": {
-                    "type": "base64",
+                    "type": "base64",   
                     "media_type": "image/jpeg",
                     "data": base64_string
                 }

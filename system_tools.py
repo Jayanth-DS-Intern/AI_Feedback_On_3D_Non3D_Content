@@ -1,7 +1,8 @@
 system_prompt = """
-You are an AI tasked with evaluating a 3D model based on a given topic. Your goal is to determine if
-the 3D model accurately represents the topic and provide constructive feedback. Follow these steps
-carefully:
+You are tasked with analyzing a 3D model designed for educational purposes. Your goal is to identify
+potential mistakes and assess the model's realism. Remember that this model is intended for students
+in grades 6-10, so keep this perspective in mind when providing your analysis.
+
 
 1. First, you will be presented with a topic. This topic is related to subjects taught in 6th to
 10th grade classes. Read and analyze the topic carefully.
@@ -26,7 +27,22 @@ topic above. Examine each frame carefully.
 - Check if any crucial steps or elements are missing.
 - Consider what could be added or changed to improve the model's representation of the given topic.
 
+
 6. Provide your evaluation and feedback:
+
+=>. Grammatical mistakes in labels: Look for errors in capitalization, spelling, punctuation, or any
+other grammatical issues in the labels used in the model.
+
+=>. Conceptual mistakes in labeling: Identify any instances where labels are placed on incorrect
+parts of the model or where the labeling is conceptually wrong. 
+
+Examples: There might be wrong in structures of compounds like H20, C02 --etc so carefully observe them!
+"The label 'Tendency of a moving object to remain as motion and resist any charge' contains a conceptual mistake. It should be 'Tendency of a moving object to remain in motion and resist any change' instead of 'charge'.
+
+
+=>. Realism of the 3D model: Assess whether the model is at least 70percent realistic compared to its
+real-world counterpart. Consider factors such as proportions, colors, and overall representation.
+
 - Start with a brief overall assessment of how well the 3D model represents the topic.
 - List specific strengths of the model in representing the topic.
 - Identify any missing elements or areas for improvement.
@@ -44,6 +60,20 @@ Present your evaluation and feedback in the following format:
 - [List specific strengths of the model]
 - [Continue listing strengths]
 </strengths>
+
+<grammatical_mistakes>
+[List any grammatical mistakes found in the labels. If none are found, state "No grammatical
+mistakes found."]
+</grammatical_mistakes>
+
+<conceptual_mistakes>
+[List any conceptual mistakes in labeling. Like wrong labelling, If none are found, state "No conceptual mistakes found."]
+</conceptual_mistakes>
+
+<realism_assessment>
+[Provide your assessment of the model's realism, including whether it meets the 70% threshold.
+Explain your reasoning.]
+</realism_assessment>
 
 <areas_for_improvement>
 - [Identify missing elements or areas that could be improved]
@@ -80,6 +110,19 @@ tools_3d_models_feedback = [
                                 "type": "string",
                                 "description": "Provide a brief overall assessment of how well the 3D model represents the topic"
                             },
+                            "grammatical_mistakes":{
+                                "type": "string",
+                                "description": "List any grammatical mistakes found in the labels. If none are found, state 'No grammatical mistakes found'."
+                            },
+
+                            "conceptual_mistakes": {
+                                "type": "string",
+                                "description": "List any conceptual mistakes in labeling. Like wrong labelling, If none are found, state 'No conceptual mistakes found.'"
+                            },
+                            "realism_assessment": {
+                                "type": "string",
+                                "description": "Provide your assessment of the model's realism, including whether it meets the 70% threshold. Explain your reasoning."
+                            },
                             "strengths": {
                                 "type": "string",
                                 "description": "List specific strengths of the model and Continue listing strengths in bullet points"
@@ -93,7 +136,7 @@ tools_3d_models_feedback = [
                                 "description": "Provide specific suggestions for additions or changes and Continue listing suggestions in bullet points"
                             }
                         },
-                        "required": ["overall_assessment", "areas_for_improvement", "strengths", "suggestions"]
+                        "required": ["overall_assessment", "grammatical_mistakes", "conceptual_mistakes" , "realism_assessment","areas_for_improvement", "strengths", "suggestions"]
                     }
                 }
             },
